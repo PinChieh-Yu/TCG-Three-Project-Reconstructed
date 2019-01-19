@@ -13,7 +13,7 @@ using namespace std;
 
 class player {
 public:
-	player(const string args) : opcode({ "#U", "#R", "#D", "#L" }), tuples({{
+	player(const string args = "") : opcode({ "#U", "#R", "#D", "#L" }), tuples({{
 		{{{0,1,2,3,4,5},{4,5,6,7,8,9},{7,6,5,11,10,9},{15,14,13,11,10,9}}},
 		{{{3,7,11,15,2,6},{2,6,10,14,1,5},{14,10,6,13,9,5},{12,8,4,13,9,5}}},
 		{{{15,14,13,12,11,10},{11,10,9,8,7,6},{8,9,10,4,5,6},{0,1,2,4,5,6}}},
@@ -21,7 +21,7 @@ public:
 		{{{3,2,1,0,7,6},{7,6,5,4,11,10},{4,5,6,8,9,10},{12,13,14,8,9,10}}},
 		{{{15,11,7,3,14,10},{14,10,6,2,13,9},{2,6,10,1,5,9},{0,4,8,1,5,9}}},
 		{{{12,13,14,15,8,9},{8,9,10,11,4,5},{11,10,9,7,6,5},{3,2,1,7,6,5}}},
-		{{{0,4,8,12,1,5},{1,5,9,13,2,6},{13,9,5,14,10,6},{15,11,7,14,10,6}}}}})
+		{{{0,4,8,12,1,5},{1,5,9,13,2,6},{13,9,5,14,10,6},{15,11,7,14,10,6}}}}}), alpha(0.1)
 	{
 		stringstream ss(args);
 		for (string pair; ss >> pair;) {
@@ -36,7 +36,7 @@ public:
 			} else if(key == "alpha") {
 				alpha = atof(value.c_str());
 			}
-		}	
+		}
 	}
 
 	~player() {
@@ -84,7 +84,7 @@ public:
 			move_records.push_back(final_op);
 			movement = opcode[final_op];
 		} else {
-			movement = "~";
+			movement = "??";
 		}
 	}
 
@@ -93,8 +93,6 @@ public:
 		int pre_move, cur_move, pre_hint, cur_hint;
 		board pre_board, cur_board;
 		double pre_value, cur_value, result;
-
-		cout <<alpha << endl; 
 		//update end board
 		pre_board = board_records.back();
 		pre_move = move_records.back();
@@ -243,7 +241,116 @@ private:
 
 class environment {
 public:
-	environment() : policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}),
+	environment(const string args = "") : policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}), 
+	point({{"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"}})
+	{ 
+		reset_bag();
+		stringstream ss(args);
+		for (string pair; ss >> pair;) {
+			string key = pair.substr(0, pair.find('='));
+			string value = pair.substr(pair.find('=') + 1);
+			if(key == "load") {
+				LoadWeightTable(value);
+			}
+		} 
+	}
+
+	void take_action(board& after, string& movement, uint32_t& hint) {
+		int place, dir = -1;
+
+		if (movement == "#U") {
+			dir = 0;
+		} else if (movement == "#R") {
+			dir = 1;
+		} else if (movement == "#D") {
+			dir = 2;
+		} else if (movement == "#L") {
+			dir = 3;
+		}
+		if (dir != -1){
+			do {
+				place = policy[dir][rand() % 4];
+			} while (after(place) != 0);
+		} else {
+			do {
+				place = rand() % 16;
+			} while (after(place) != 0);
+		}
+
+		tile = next;
+		max = after.max();
+		if (max >= 7 && ((double)rand() / RAND_MAX) <= (1.0f / 21.0f)) {
+			next = round(4 + ((double)rand() / RAND_MAX) * (max - 7));
+			hint = 4;
+		} else {
+			next = get_tile_from_bag();
+			hint = next;
+		}
+		
+		after(place) = tile;
+		movement = point[place] + point[tile];
+	}
+
+	void reset_bag(){
+		bag.clear();
+		next = get_tile_from_bag();
+	}
+
+private:
+	uint32_t get_tile_from_bag() {
+		uint32_t tile;
+		if (bag.empty()) {
+			for(int i = 0; i < 4; i++){
+				bag.push_back(1);
+				bag.push_back(2);
+				bag.push_back(3);
+			}
+			random_shuffle(bag.begin(), bag.end());
+		}
+		tile = bag.back();
+		bag.pop_back();
+	
+		return tile;
+	}
+
+	void LoadWeightTable(string path) {
+		table.clear();
+		ifstream in(path, ios::in | ios::binary);
+		if (!in.is_open()) std::exit(-1);
+		uint32_t block;
+		uint64_t size, key;
+		float value;
+		
+		in.read(reinterpret_cast<char*>(&block), sizeof(uint32_t));
+		table.resize(block);
+		cout << "load block:" << block << endl;
+		for (unsigned int b = 0; b < block; b++) {
+			in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+			cout << "-load size:" << size << endl;
+			while (size--) {
+				in.read(reinterpret_cast<char*>(&key), sizeof(uint64_t));
+				in.read(reinterpret_cast<char*>(&value), sizeof(float));
+				table[b][key] = value;
+			}
+		}
+		in.close();
+	}
+
+private:
+	vector<unordered_map<uint64_t, float>> table;
+
+	array<array<int, 4>, 4> policy;
+	array<string, 16> point;
+	vector<int> bag;
+	uint32_t next;
+
+	uint32_t tile;
+	uint32_t max;
+};
+
+class rnd_environment {
+public:
+	rnd_environment() : policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}),
 		point({{"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"}}) { reset_bag(); }
 
 	void take_action(board& after, string& movement, uint32_t& hint) {
