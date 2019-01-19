@@ -44,7 +44,7 @@ public:
 			SaveWeightTable(s_path);
 	}
 
-	void take_action(board& before, string& movement, uint32_t& hint) {
+	void take_action(board& before, string& movement, uint16_t& hint) {
 		board after;
 		unsigned int hash;
 		int reward, final_reward = 0;
@@ -242,7 +242,7 @@ private:
 class environment {
 public:
 	environment(const string args = "") : policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}), 
-	point({{"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"}})
+	point({{"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"}}), bonus_count(0), total_count(0)
 	{ 
 		reset_bag();
 		stringstream ss(args);
@@ -255,9 +255,10 @@ public:
 		} 
 	}
 
-	void take_action(board& after, string& movement, uint32_t& hint) {
+	void take_action(board& after, string& movement, uint16_t& hint) {
 		int place, dir = -1;
 
+		//setup position
 		if (movement == "#U") {
 			dir = 0;
 		} else if (movement == "#R") {
@@ -279,9 +280,11 @@ public:
 
 		tile = next;
 		max = after.max();
+		total_count++;
 		if (max >= 7 && ((double)rand() / RAND_MAX) <= (1.0f / 21.0f)) {
 			next = round(4 + ((double)rand() / RAND_MAX) * (max - 7));
 			hint = 4;
+			bonus_count++;
 		} else {
 			next = get_tile_from_bag();
 			hint = next;
@@ -297,8 +300,8 @@ public:
 	}
 
 private:
-	uint32_t get_tile_from_bag() {
-		uint32_t tile;
+	uint16_t get_tile_from_bag() {
+		uint16_t tile;
 		if (bag.empty()) {
 			for(int i = 0; i < 4; i++){
 				bag.push_back(1);
@@ -342,10 +345,13 @@ private:
 	array<array<int, 4>, 4> policy;
 	array<string, 16> point;
 	vector<int> bag;
-	uint32_t next;
+	uint16_t next;
 
-	uint32_t tile;
-	uint32_t max;
+	uint16_t tile;
+	uint16_t max;
+
+	uint16_t bonus_count;
+	uint16_t total_count;
 };
 
 class rnd_environment {
@@ -353,7 +359,7 @@ public:
 	rnd_environment() : policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}),
 		point({{"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"}}) { reset_bag(); }
 
-	void take_action(board& after, string& movement, uint32_t& hint) {
+	void take_action(board& after, string& movement, uint16_t& hint) {
 		int place, dir = -1;
 
 		if (movement == "#U") {

@@ -26,7 +26,7 @@ struct episode {
 size_t step;
 board current;
 string movement;
-uint32_t hint;
+uint16_t hint;
 vector<episode> record;
 
 int shell(int argc, const char* argv[]) {
@@ -56,7 +56,7 @@ int shell(int argc, const char* argv[]) {
 	}
 
 	player play(play_args);
-	environment envi;
+	environment envi(evil_args);
 
 	regex match_move("^#\\S+ \\S+$"); // e.g. "#M0001 ?", "#M0001 #U"
 	regex match_ctrl("^#\\S+ \\S+ \\S+$"); // e.g. "#M0001 open Slider:Placer", "#M0001 close score=15424"
@@ -97,10 +97,10 @@ int shell(int argc, const char* argv[]) {
 					// a new match is pending
 					InitNewEpisode();
 					if (mode != 0 && mode != 1) {
-						if (tag.substr(0, tag.find(':')) == "pcyu_play") {
+						if (tag.substr(0, tag.find(':')) == "pcyu_play" || tag.substr(0, tag.find(':')) == "$pcyu") {
 							mode = 0;
 							output() << id << " open accept" << endl;
-						} else if (tag.substr(tag.find(':') + 1) == "pcyu_envi") {
+						} else if (tag.substr(tag.find(':') + 1) == "pcyu_envi" || tag.substr(tag.find(':') + 1) == "$pcyu") {
 							mode = 1;
 							output() << id << " open accept" << endl;
 						} else {
@@ -113,6 +113,7 @@ int shell(int argc, const char* argv[]) {
 				} else if (ctrl == "close") {
 					// a match is finished
 					mode = 2;
+					envi.reset_bag();
 					//host.close(id, tag);
 				}
 
@@ -251,12 +252,16 @@ time_t millisec() {
 void ApplyAction(string action) {
 	step++;
 	if (action == "#U") {
+		movement = action;
 		current.slide(0);
 	} else if (action == "#R") {
+		movement = action;
 		current.slide(1);
 	} else if (action == "#D") {
+		movement = action;
 		current.slide(2);
 	} else if (action == "#L") {
+		movement = action;
 		current.slide(3);
 	} else if (action.size() == 4) {
 		uint8_t place, tile;

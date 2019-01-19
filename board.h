@@ -16,14 +16,14 @@
  */
 class board {
 public:
-	typedef uint32_t cell;
+	typedef uint16_t cell;
 	typedef std::array<cell, 4> row;
 	typedef std::array<row, 4> grid;
 	typedef int reward;
 
 public:
-	board() : last_op(0), tile({{{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}}}) {}
-	board(const grid& b) : last_op(0), tile(b) {}
+	board() : tile({{{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}}}) {}
+	board(const grid& b) : tile(b) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -49,7 +49,6 @@ public:
 	 * return 0 if the action is valid, or -1 if not
 	 */
 	reward place(unsigned pos, cell tile) {
-		last_op = 4;
 		if (pos >= 16) return -1;
 		operator()(pos) = tile;
 		return (tile == 3) ? 3 : 0;
@@ -60,7 +59,6 @@ public:
 	 * return the reward of the action, or -1 if the action is illegal
 	 */
 	reward slide(unsigned opcode) {
-		last_op = (opcode & 0b11);
 		switch (opcode & 0b11) {
 			case 0: return slide_up();
 			case 1: return slide_right();
@@ -188,8 +186,6 @@ public:
 		out << "+------------------------+" << std::endl;
 		return out;
 	}
-public:
-	int last_op;
 private:
 	grid tile;
 };
