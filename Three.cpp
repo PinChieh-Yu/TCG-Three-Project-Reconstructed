@@ -68,21 +68,18 @@ int shell(int argc, const char* argv[]) {
 			if (regex_match(command, match_move)) {
 				string id, move;
 				stringstream(command) >> id >> move;
-				cout << id << move << endl;
 
 				if (move == "?") {
 					// your agent need to take an action
 					step++;
-					if (mode == 0 || mode == 1) {
-						if (max(step, size_t(9)) % 2) {
-							envi.take_action(current, movement, hint);
-							output() << id << ' ' << movement << "+" << hint << endl;
-						} else {
-							play.take_action(current, movement, hint);
-							output() << id << ' ' << movement << endl;
-						}
-					} else {
+					if (mode == 0) {
+						play.take_action(current, movement, hint);
 						output() << id << ' ' << movement << endl;
+					} else if (mode == 1) {
+						envi.take_action(current, movement, hint);
+						output() << id << ' ' << movement << "+" << hint << endl;
+					} else {
+						output() << id << ' ' << "??" << endl;
 					}
 				} else {
 					// perform your opponent's action
@@ -96,7 +93,7 @@ int shell(int argc, const char* argv[]) {
 				if (ctrl == "open") {
 					// a new match is pending
 					InitNewEpisode();
-					if (mode != 0 && mode != 1) {
+					if (mode == 2) {
 						if (tag.substr(0, tag.find(':')) == "pcyu_play" || tag.substr(0, tag.find(':')) == "$pcyu") {
 							mode = 0;
 							output() << id << " open accept" << endl;
@@ -113,8 +110,7 @@ int shell(int argc, const char* argv[]) {
 				} else if (ctrl == "close") {
 					// a match is finished
 					mode = 2;
-					envi.reset_bag();
-					//host.close(id, tag);
+					envi.reset();
 				}
 
 			} else if (regex_match(command, arena_ctrl)) {
@@ -190,7 +186,7 @@ int main(int argc, const char* argv[]) {
 		}
 	}
 
-	player play(play_args);
+	train_player play(play_args);
 	rnd_environment envi;
 
 	for (size_t turn = 1; turn <= total; turn++) {
@@ -241,7 +237,7 @@ void InitNewEpisode() {
 	step = 0;
 	current.Reset();
 	movement = "00";
-	hint = 0;
+	hint = 1;
 }
 
 time_t millisec() {

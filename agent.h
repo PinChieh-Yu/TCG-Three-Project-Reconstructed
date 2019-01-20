@@ -21,6 +21,98 @@ public:
 		{{{3,2,1,0,7,6},{7,6,5,4,11,10},{4,5,6,8,9,10},{12,13,14,8,9,10}}},
 		{{{15,11,7,3,14,10},{14,10,6,2,13,9},{2,6,10,1,5,9},{0,4,8,1,5,9}}},
 		{{{12,13,14,15,8,9},{8,9,10,11,4,5},{11,10,9,7,6,5},{3,2,1,7,6,5}}},
+		{{{0,4,8,12,1,5},{1,5,9,13,2,6},{13,9,5,14,10,6},{15,11,7,14,10,6}}}}})
+	{
+		stringstream ss(args);
+		for (string pair; ss >> pair;) {
+			string key = pair.substr(0, pair.find('='));
+			string value = pair.substr(pair.find('=') + 1);
+			if(key == "load") {
+				LoadWeightTable(value);
+			}
+		}
+	}
+
+	void take_action(board& before, string& movement, uint16_t& hint) {
+		board after;
+		unsigned int hash;
+		int reward;
+		int final_op = -1; 
+		double value, highest_value = -2147483648;
+
+		hint -= 1;
+		for (int op = 0; op < 3; op++) { // four direction
+			after = before;
+			reward = after.slide(op);
+			if (reward != -1) {
+				// hash the tuple
+				value = reward;
+				for(int i = 0; i < 8; i++){
+					for(int j = 0; j < 4; j++){
+						hash = 0;
+						for(int k = 0; k < 6; k++){
+							hash = (hash << 4) + after(tuples[i][j][k]);
+						}
+						hash = (hash << 4) + (op << 2) + hint;
+						value += table[j][hash];
+					}
+				}
+				if (highest_value < value) {
+					final_op = op;
+					highest_value = value;
+				}
+			}
+		}
+
+		if (final_op != -1) {
+			before.slide(final_op);
+			movement = opcode[final_op];
+		} else {
+			movement = "??";
+		}
+	}
+
+private:
+	void LoadWeightTable(string path) {
+		table.clear();
+		ifstream in(path, ios::in | ios::binary);
+		if (!in.is_open()) std::exit(-1);
+		uint32_t block;
+		uint64_t size, key;
+		float value;
+		
+		in.read(reinterpret_cast<char*>(&block), sizeof(uint32_t));
+		table.resize(block);
+		cout << "load block:" << block << endl;
+		for (unsigned int b = 0; b < block; b++) {
+			in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+			cout << "-load size:" << size << endl;
+			while (size--) {
+				in.read(reinterpret_cast<char*>(&key), sizeof(uint64_t));
+				in.read(reinterpret_cast<char*>(&value), sizeof(float));
+				table[b][key] = value;
+			}
+		}
+		in.close();
+	}
+
+private:
+	array<string, 4> opcode;
+	array<array<array<int, 6>, 4>, 8> tuples;
+	
+	vector<unordered_map<uint64_t, float>> table;
+};
+
+class train_player {
+public:
+	train_player(const string args = "") : opcode({ "#U", "#R", "#D", "#L" }), tuples({{
+		{{{0,1,2,3,4,5},{4,5,6,7,8,9},{7,6,5,11,10,9},{15,14,13,11,10,9}}},
+		{{{3,7,11,15,2,6},{2,6,10,14,1,5},{14,10,6,13,9,5},{12,8,4,13,9,5}}},
+		{{{15,14,13,12,11,10},{11,10,9,8,7,6},{8,9,10,4,5,6},{0,1,2,4,5,6}}},
+		{{{12,8,4,0,13,9},{13,9,5,1,14,10},{1,5,9,2,6,10},{3,7,11,2,6,10}}},
+		{{{3,2,1,0,7,6},{7,6,5,4,11,10},{4,5,6,8,9,10},{12,13,14,8,9,10}}},
+		{{{15,11,7,3,14,10},{14,10,6,2,13,9},{2,6,10,1,5,9},{0,4,8,1,5,9}}},
+		{{{12,13,14,15,8,9},{8,9,10,11,4,5},{11,10,9,7,6,5},{3,2,1,7,6,5}}},
 		{{{0,4,8,12,1,5},{1,5,9,13,2,6},{13,9,5,14,10,6},{15,11,7,14,10,6}}}}}), alpha(0.1)
 	{
 		stringstream ss(args);
@@ -39,7 +131,7 @@ public:
 		}
 	}
 
-	~player() {
+	~train_player() {
 		if (s_path.length())
 			SaveWeightTable(s_path);
 	}
@@ -241,10 +333,14 @@ private:
 
 class environment {
 public:
-	environment(const string args = "") : policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}), 
-	point({{"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"}}), bonus_count(0), total_count(0)
-	{ 
-		reset_bag();
+	environment(const string args = "") : tuples({{{{{0,1,2,3,4,5},{4,5,6,7,8,9},{7,6,5,11,10,9},{15,14,13,11,10,9}}},
+	{{{3,7,11,15,2,6},{2,6,10,14,1,5},{14,10,6,13,9,5},{12,8,4,13,9,5}}}, {{{15,14,13,12,11,10},{11,10,9,8,7,6},{8,9,10,4,5,6},{0,1,2,4,5,6}}},
+	{{{12,8,4,0,13,9},{13,9,5,1,14,10},{1,5,9,2,6,10},{3,7,11,2,6,10}}}, {{{3,2,1,0,7,6},{7,6,5,4,11,10},{4,5,6,8,9,10},{12,13,14,8,9,10}}},
+	{{{15,11,7,3,14,10},{14,10,6,2,13,9},{2,6,10,1,5,9},{0,4,8,1,5,9}}}, {{{12,13,14,15,8,9},{8,9,10,11,4,5},{11,10,9,7,6,5},{3,2,1,7,6,5}}},
+	{{{0,4,8,12,1,5},{1,5,9,13,2,6},{13,9,5,14,10,6},{15,11,7,14,10,6}}}}}), policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}), 
+	point({{"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"}})
+	{
+		reset();
 		stringstream ss(args);
 		for (string pair; ss >> pair;) {
 			string key = pair.substr(0, pair.find('='));
@@ -258,6 +354,7 @@ public:
 	void take_action(board& after, string& movement, uint16_t& hint) {
 		int place, dir = -1;
 
+		total_count++;
 		//setup position
 		if (movement == "#U") {
 			dir = 0;
@@ -269,51 +366,100 @@ public:
 			dir = 3;
 		}
 		if (dir != -1){
-			do {
-				place = policy[dir][rand() % 4];
-			} while (after(place) != 0);
+			board before, next_after;
+			uint64_t hash;
+			int final_place = 0, final_hint = 1, final_tile = 1, hint_start, hint_end, tile_start, tile_end;
+			double min_value = 2147483647, max_value, value;
+
+			//deside this tile
+			if (hint == 4) {
+				tile_start = 4; tile_end = after.max() - 3;
+				bonus_count++;
+			} else {
+				tile_start = hint; tile_end = hint;
+				bag_remain[hint-1]--;
+				if (bag_remain[0] == 0 && bag_remain[1] == 0 && bag_remain[2] == 0) reset_bag();
+			}
+			//deside next hint(tile)
+			if (!bonus_burst || (float)(bonus_count+1)/(total_count+1) > 1.0/21.0 || after.max() < 7) {
+				hint_start = 0; hint_end = 2;
+				bonus_burst = ((double)rand() / RAND_MAX < (total_count-bonus_count) / 100.0f); //可以調整burst rate
+			} else {
+				hint_start = 3; hint_end = 3;
+			}
+
+			for (int p = 0; p < 4; p++) {
+				place = policy[dir][p];
+				if (after(place) != 0) continue;
+				before = after;
+				for (int t = tile_start; t <= tile_end; t++) {
+					before(policy[dir][p]) = t;
+					for (int h = hint_start; h <= hint_end; h++) {
+						//simulate player move
+						if (h != 3 && bag_remain[h] == 0) continue;
+						max_value = -2147483647;
+						for (int op = 0; op < 4; op++) { // four direction
+							next_after = before;
+							value = next_after.slide(op);
+							if (value != -1) {
+								// hash the tuple
+								for (int i = 0; i < 8; i++) {
+									for (int j = 0; j < 4; j++) {
+										hash = 0;
+										for (int k = 0; k < 6; k++) {
+											hash = (hash << 4) + next_after(tuples[i][j][k]);
+										}
+										hash = (hash << 4) + (op << 2) + h;
+										value += table[j][hash];
+									}
+								}
+								if (max_value < value) {
+									max_value = value;
+								}
+								if (value > min_value) {
+									break;
+								}
+							}
+						}
+						if (min_value > max_value) {
+							min_value = max_value;
+							final_place = place;
+							final_tile = t;
+							final_hint = h+1;
+						}
+					}
+				}
+			}
+			after(final_place) = final_tile;
+			hint = final_hint;
+			movement = point[final_place] + point[final_tile];
 		} else {
 			do {
 				place = rand() % 16;
 			} while (after(place) != 0);
-		}
+			after(place) = hint;
+			bag_remain[hint-1]--;
+			movement = point[place] + point[hint];
 
-		tile = next;
-		max = after.max();
-		total_count++;
-		if (max >= 7 && ((double)rand() / RAND_MAX) <= (1.0f / 21.0f)) {
-			next = round(4 + ((double)rand() / RAND_MAX) * (max - 7));
-			hint = 4;
-			bonus_count++;
-		} else {
-			next = get_tile_from_bag();
-			hint = next;
+			if (bag_remain[0] == 0 && bag_remain[1] == 0 && bag_remain[2] == 0) reset_bag();
+
+			do {
+				hint = rand() % 3;
+			} while (bag_remain[hint] == 0);
+			hint++;
 		}
-		
-		after(place) = tile;
-		movement = point[place] + point[tile];
 	}
 
-	void reset_bag(){
-		bag.clear();
-		next = get_tile_from_bag();
+	void reset() {
+		reset_bag();
+		bonus_burst = false;
+		bonus_count = 0;
+		total_count = 0;
 	}
 
 private:
-	uint16_t get_tile_from_bag() {
-		uint16_t tile;
-		if (bag.empty()) {
-			for(int i = 0; i < 4; i++){
-				bag.push_back(1);
-				bag.push_back(2);
-				bag.push_back(3);
-			}
-			random_shuffle(bag.begin(), bag.end());
-		}
-		tile = bag.back();
-		bag.pop_back();
-	
-		return tile;
+	void reset_bag() {
+		bag_remain[0] = bag_remain[1] = bag_remain[2] = 4;
 	}
 
 	void LoadWeightTable(string path) {
@@ -340,16 +486,14 @@ private:
 	}
 
 private:
+	array<array<array<int, 6>, 4>, 8> tuples;
 	vector<unordered_map<uint64_t, float>> table;
 
 	array<array<int, 4>, 4> policy;
 	array<string, 16> point;
-	vector<int> bag;
-	uint16_t next;
+	array<int, 3> bag_remain;
 
-	uint16_t tile;
-	uint16_t max;
-
+	bool bonus_burst;
 	uint16_t bonus_count;
 	uint16_t total_count;
 };
