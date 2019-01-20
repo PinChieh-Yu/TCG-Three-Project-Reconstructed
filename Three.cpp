@@ -145,7 +145,6 @@ int shell(int argc, const char* argv[]) {
 	return 0;
 }
 
-
 int main(int argc, const char* argv[]) {
 	cout << "Three-Demo: ";
 	copy(argv, argv + argc, ostream_iterator<const char*>(cout, " "));
