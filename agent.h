@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <unordered_map>
+#include <vector>
 #include <type_traits>
 #include <algorithm>
 #include <cmath>
@@ -337,7 +338,7 @@ public:
 	{{{3,7,11,15,2,6},{2,6,10,14,1,5},{14,10,6,13,9,5},{12,8,4,13,9,5}}}, {{{15,14,13,12,11,10},{11,10,9,8,7,6},{8,9,10,4,5,6},{0,1,2,4,5,6}}},
 	{{{12,8,4,0,13,9},{13,9,5,1,14,10},{1,5,9,2,6,10},{3,7,11,2,6,10}}}, {{{3,2,1,0,7,6},{7,6,5,4,11,10},{4,5,6,8,9,10},{12,13,14,8,9,10}}},
 	{{{15,11,7,3,14,10},{14,10,6,2,13,9},{2,6,10,1,5,9},{0,4,8,1,5,9}}}, {{{12,13,14,15,8,9},{8,9,10,11,4,5},{11,10,9,7,6,5},{3,2,1,7,6,5}}},
-	{{{0,4,8,12,1,5},{1,5,9,13,2,6},{13,9,5,14,10,6},{15,11,7,14,10,6}}}}}), policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}), 
+	{{{0,4,8,12,1,5},{1,5,9,13,2,6},{13,9,5,14,10,6},{15,11,7,14,10,6}}}}}), init_pos({{0,1,2,3,4,7,8,11,15}}), init_tile({{1,1,3,2,2,2,2,3,3}}), policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}), 
 	point({{"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"}})
 	{
 		reset();
@@ -434,19 +435,12 @@ public:
 			hint = final_hint;
 			movement = point[final_place] + point[final_tile];
 		} else {
-			do {
-				place = rand() % 16;
-			} while (after(place) != 0);
+			place = init_pos[total_count-1];
 			after(place) = hint;
 			bag_remain[hint-1]--;
 			movement = point[place] + point[hint];
 
-			if (bag_remain[0] == 0 && bag_remain[1] == 0 && bag_remain[2] == 0) reset_bag();
-
-			do {
-				hint = rand() % 3;
-			} while (bag_remain[hint] == 0);
-			hint++;
+			hint = init_tile[total_count-1];
 		}
 	}
 
@@ -488,6 +482,8 @@ private:
 private:
 	array<array<array<int, 6>, 4>, 8> tuples;
 	vector<unordered_map<uint64_t, float>> table;
+	array<uint16_t, 9> init_pos;
+	array<uint16_t, 9> init_tile;
 
 	array<array<int, 4>, 4> policy;
 	array<string, 16> point;

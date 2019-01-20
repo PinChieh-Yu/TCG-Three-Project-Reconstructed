@@ -236,7 +236,7 @@ void InitNewEpisode() {
 	step = 0;
 	current.Reset();
 	movement = "00";
-	hint = 1;
+	hint = 3;
 }
 
 time_t millisec() {
