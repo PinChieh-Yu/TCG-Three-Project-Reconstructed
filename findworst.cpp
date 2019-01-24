@@ -16,12 +16,14 @@ using namespace std;
 worst_player play("load=weights.bin");
 double min_value = 2147483647, value;
 board result;
+int hint, result_hint;
 void dfs(board& b, array<int, 3>& bag, int last, int count) {
 	if (count == 9) {
-		value = play.take_action(b, bag);
+		value = play.take_action(b, bag, hint);
 		if (value < min_value) {
 			min_value = value;
 			result = b;
+			result_hint = hint;
 		}
 		return;
 	}
@@ -44,6 +46,7 @@ int main(int argc, const char* argv[]) {
 	dfs(tmp, bag, -1, 0);
 	cout << "Worst Board:" << endl;
 	cout << result << endl;
-	
+	cout << "Next Hint:" << endl;
+	cout << result_hint << endl;
 	return 0;
 }

@@ -52,9 +52,9 @@ public:
 					for(int j = 0; j < 4; j++){
 						hash = 0;
 						for(int k = 0; k < 6; k++){
-							hash = (hash << 4) + after(tuples[i][j][k]);
+							hash = hash * 15 + after(tuples[i][j][k]);
 						}
-						hash = (hash << 4) + (op << 2) + hint;
+						hash = (hash << 2) + hint;
 						value += table[j][hash];
 					}
 				}
@@ -78,18 +78,17 @@ private:
 		table.clear();
 		ifstream in(path, ios::in | ios::binary);
 		if (!in.is_open()) std::exit(-1);
-		uint32_t block;
-		uint64_t size, key;
+		uint32_t block, size, key;
 		float value;
 		
 		in.read(reinterpret_cast<char*>(&block), sizeof(uint32_t));
 		table.resize(block);
 		cout << "load block:" << block << endl;
 		for (unsigned int b = 0; b < block; b++) {
-			in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+			in.read(reinterpret_cast<char*>(&size), sizeof(uint32_t));
 			cout << "-load size:" << size << endl;
 			while (size--) {
-				in.read(reinterpret_cast<char*>(&key), sizeof(uint64_t));
+				in.read(reinterpret_cast<char*>(&key), sizeof(uint32_t));
 				in.read(reinterpret_cast<char*>(&value), sizeof(float));
 				table[b][key] = value;
 			}
@@ -101,7 +100,7 @@ private:
 	array<string, 4> opcode;
 	array<array<array<int, 6>, 4>, 8> tuples;
 	
-	vector<unordered_map<uint64_t, float>> table;
+	vector<unordered_map<uint32_t, float>> table;
 };
 
 class train_player {
@@ -155,9 +154,9 @@ public:
 					for(int j = 0; j < 4; j++){
 						hash = 0;
 						for(int k = 0; k < 6; k++){
-							hash = (hash << 4) + after(tuples[i][j][k]);
+							hash = hash * 15 + after(tuples[i][j][k]);
 						}
-						hash = (hash << 4) + (op << 2) + hint;
+						hash = (hash << 2) + hint;
 						value += table[j][hash];
 					}
 				}
@@ -174,7 +173,6 @@ public:
 			board_records.push_back(before);
 			reward_records.push_back(final_reward);
 			hint_records.push_back(hint);
-			move_records.push_back(final_op);
 			movement = opcode[final_op];
 		} else {
 			movement = "??";
@@ -182,25 +180,23 @@ public:
 	}
 
 	void backward_train() {
-		uint64_t hash;
-		int pre_move, cur_move, pre_hint, cur_hint;
+		uint32_t hash;
+		int pre_hint, cur_hint;
 		board pre_board, cur_board;
 		double pre_value, cur_value, result;
 		//update end board
 		pre_board = board_records.back();
-		pre_move = move_records.back();
 		pre_hint = hint_records.back();
 		board_records.pop_back();
-		move_records.pop_back();
 		hint_records.pop_back();
 		pre_value = 0;
 		for(int i = 0; i < 8; i++){
 			for(int j = 0; j < 4; j++){
 				hash = 0;
 				for(int k = 0; k < 6; k++){
-					hash = (hash << 4) + pre_board(tuples[i][j][k]);
+					hash = hash * 15 + pre_board(tuples[i][j][k]);
 				}
-				hash = (hash << 4) + (pre_move << 2) + pre_hint;
+				hash = (hash << 2) + pre_hint;
 				pre_value += table[j][hash];
 			}
 		}
@@ -209,9 +205,9 @@ public:
 			for(int j = 0; j < 4; j++){
 				hash = 0;
 				for(int k = 0; k < 6; k++){
-					hash = (hash << 4) + pre_board(tuples[i][j][k]);
+					hash = hash * 15 + pre_board(tuples[i][j][k]);
 				}
-				hash = (hash << 4) + (pre_move << 2) + pre_hint;
+				hash = (hash << 2) + pre_hint;
 				table[j][hash] += result;
 			}
 		}
@@ -219,13 +215,10 @@ public:
 		//start backward train
 		while (board_records.size() > 1) {
 			cur_board = pre_board;
-			cur_move = pre_move;
 			cur_hint = pre_hint;
 			pre_board = board_records.back();
-			pre_move = move_records.back();
 			pre_hint = hint_records.back();
 			board_records.pop_back();
-			move_records.pop_back();
 			hint_records.pop_back();
 
 			cur_value = 0;
@@ -234,17 +227,17 @@ public:
 				for(int j = 0; j < 4; j++){
 					hash = 0;
 					for(int k = 0; k < 6; k++){
-						hash = (hash << 4) + cur_board(tuples[i][j][k]);
+						hash = hash * 15 + cur_board(tuples[i][j][k]);
 					}
-					hash = (hash << 4) + (cur_move << 2) + cur_hint;
+					hash = (hash << 2) + cur_hint;
 					cur_value += table[j][hash];
 				}
 				for(int j = 0; j < 4; j++){
 					hash = 0;
 					for(int k = 0; k < 6; k++){
-						hash = (hash << 4) + pre_board(tuples[i][j][k]);
+						hash = hash * 15 + pre_board(tuples[i][j][k]);
 					}
-					hash = (hash << 4) + (pre_move << 2) + pre_hint;
+					hash = (hash << 2) + pre_hint;
 					pre_value += table[j][hash];
 				}
 			}
@@ -258,9 +251,9 @@ public:
 				for(int j = 0; j < 4; j++){
 					hash = 0;
 					for(int k = 0; k < 6; k++){
-						hash = (hash << 4) + pre_board(tuples[i][j][k]);
+						hash = hash * 15 + pre_board(tuples[i][j][k]);
 					}
-					hash = (hash << 4) + (pre_move << 2) + pre_hint;
+					hash = (hash << 2) + pre_hint;
 					table[j][hash] += result;
 				}
 			}
@@ -269,7 +262,6 @@ public:
 		reward_records.clear();
 		board_records.clear();
 		hint_records.clear();
-		move_records.clear();
 	}
 
 private:
@@ -283,17 +275,17 @@ private:
 		ifstream in(path, ios::in | ios::binary);
 		if (!in.is_open()) std::exit(-1);
 		uint32_t block;
-		uint64_t size, key;
+		uint32_t size, key;
 		float value;
 		
 		in.read(reinterpret_cast<char*>(&block), sizeof(uint32_t));
 		table.resize(block);
 		cout << "load block:" << block << endl;
 		for (unsigned int b = 0; b < block; b++) {
-			in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+			in.read(reinterpret_cast<char*>(&size), sizeof(uint32_t));
 			cout << "-load size:" << size << endl;
 			while (size--) {
-				in.read(reinterpret_cast<char*>(&key), sizeof(uint64_t));
+				in.read(reinterpret_cast<char*>(&key), sizeof(uint32_t));
 				in.read(reinterpret_cast<char*>(&value), sizeof(float));
 				table[b][key] = value;
 			}
@@ -305,14 +297,14 @@ private:
 		ofstream out(path, ios::out | ios::binary | ios::trunc);
 		if (!out.is_open()) std::exit(-1);
 		uint32_t block = table.size();
-		uint64_t size;
+		uint32_t size;
 		out.write(reinterpret_cast<const char*>(&block), sizeof(uint32_t));
 		for (auto const& w : table) {
 			size = w.size();
-			out.write(reinterpret_cast<const char*>(&size), sizeof(uint64_t));
+			out.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
 			for(auto const& pair : w) {
 				//cout << pair.first << ":" << pair.second << endl;
-    			out.write(reinterpret_cast<const char*>(&pair.first), sizeof(uint64_t));
+    			out.write(reinterpret_cast<const char*>(&pair.first), sizeof(uint32_t));
     			out.write(reinterpret_cast<const char*>(&pair.second), sizeof(float));
 			}
 		}
@@ -324,10 +316,9 @@ private:
 	vector<int> reward_records;
 	vector<board> board_records;
 	vector<int> hint_records;
-	vector<int> move_records;
 	array<array<array<int, 6>, 4>, 8> tuples;
 	
-	vector<unordered_map<uint64_t, float>> table;
+	vector<unordered_map<uint32_t, float>> table;
 	float alpha;
 	string s_path;
 };
@@ -338,7 +329,7 @@ public:
 	{{{3,7,11,15,2,6},{2,6,10,14,1,5},{14,10,6,13,9,5},{12,8,4,13,9,5}}}, {{{15,14,13,12,11,10},{11,10,9,8,7,6},{8,9,10,4,5,6},{0,1,2,4,5,6}}},
 	{{{12,8,4,0,13,9},{13,9,5,1,14,10},{1,5,9,2,6,10},{3,7,11,2,6,10}}}, {{{3,2,1,0,7,6},{7,6,5,4,11,10},{4,5,6,8,9,10},{12,13,14,8,9,10}}},
 	{{{15,11,7,3,14,10},{14,10,6,2,13,9},{2,6,10,1,5,9},{0,4,8,1,5,9}}}, {{{12,13,14,15,8,9},{8,9,10,11,4,5},{11,10,9,7,6,5},{3,2,1,7,6,5}}},
-	{{{0,4,8,12,1,5},{1,5,9,13,2,6},{13,9,5,14,10,6},{15,11,7,14,10,6}}}}}), init_pos({{0,1,2,3,4,7,8,11,15}}), init_tile({{1,1,3,2,2,2,2,3,3}}), policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}), 
+	{{{0,4,8,12,1,5},{1,5,9,13,2,6},{13,9,5,14,10,6},{15,11,7,14,10,6}}}}}), init_pos({{0,1,3,4,7,12,13,14,15}}), init_tile({{2,2,2,3,3,3,1,3,1}}), policy({{{12, 13, 14, 15}, {0, 4, 8, 12}, {0, 1, 2, 3}, {3, 7, 11, 15}}}), 
 	point({{"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"}})
 	{
 		reset();
@@ -368,7 +359,7 @@ public:
 		}
 		if (dir != -1){
 			board before, next_after;
-			uint64_t hash;
+			uint32_t hash;
 			int final_place = 0, final_hint = 1, final_tile = 1, hint_start, hint_end, tile_start, tile_end;
 			double min_value = 2147483647, max_value, value;
 
@@ -384,7 +375,7 @@ public:
 			//deside next hint(tile)
 			if (!bonus_burst || (float)(bonus_count+1)/(total_count+1) > 1.0/21.0 || after.max() < 7) {
 				hint_start = 0; hint_end = 2;
-				bonus_burst = ((double)rand() / RAND_MAX < (total_count-bonus_count) / 100.0f); //可以調整burst rate
+				bonus_burst = ((double)rand() / RAND_MAX < (total_count-bonus_count) / 85.0f); //可以調整burst rate
 			} else {
 				hint_start = 3; hint_end = 3;
 			}
@@ -408,9 +399,9 @@ public:
 									for (int j = 0; j < 4; j++) {
 										hash = 0;
 										for (int k = 0; k < 6; k++) {
-											hash = (hash << 4) + next_after(tuples[i][j][k]);
+											hash = hash * 15 + next_after(tuples[i][j][k]);
 										}
-										hash = (hash << 4) + (op << 2) + h;
+										hash = (hash << 2) + h;
 										value += table[j][hash];
 									}
 								}
@@ -461,17 +452,17 @@ private:
 		ifstream in(path, ios::in | ios::binary);
 		if (!in.is_open()) std::exit(-1);
 		uint32_t block;
-		uint64_t size, key;
+		uint32_t size, key;
 		float value;
 		
 		in.read(reinterpret_cast<char*>(&block), sizeof(uint32_t));
 		table.resize(block);
 		cout << "load block:" << block << endl;
 		for (unsigned int b = 0; b < block; b++) {
-			in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+			in.read(reinterpret_cast<char*>(&size), sizeof(uint32_t));
 			cout << "-load size:" << size << endl;
 			while (size--) {
-				in.read(reinterpret_cast<char*>(&key), sizeof(uint64_t));
+				in.read(reinterpret_cast<char*>(&key), sizeof(uint32_t));
 				in.read(reinterpret_cast<char*>(&value), sizeof(float));
 				table[b][key] = value;
 			}
@@ -481,7 +472,7 @@ private:
 
 private:
 	array<array<array<int, 6>, 4>, 8> tuples;
-	vector<unordered_map<uint64_t, float>> table;
+	vector<unordered_map<uint32_t, float>> table;
 	array<uint16_t, 9> init_pos;
 	array<uint16_t, 9> init_tile;
 
@@ -589,14 +580,14 @@ public:
 		}
 	}
 
-	double take_action(board& before, array<int, 3>& bag) {
+	double take_action(board& before, array<int, 3>& bag, int& hint) {
 		board after;
 		unsigned int hash;
 		int reward;
 		double value, highest_value = -2147483648;
 
-		for (int hint = 0; hint < 3; hint++) {
-			if (bag[hint] == 0) continue;
+		for (int h = 0; h < 3; h++) {
+			if (bag[h] == 0) continue;
 			for (int op = 0; op < 4; op++) { // four direction
 				after = before;
 				reward = after.slide(op);
@@ -607,14 +598,15 @@ public:
 						for(int j = 0; j < 4; j++){
 							hash = 0;
 							for(int k = 0; k < 6; k++){
-								hash = (hash << 4) + after(tuples[i][j][k]);
+								hash = hash * 15 + after(tuples[i][j][k]);
 							}
-							hash = (hash << 4) + (op << 2) + hint;
+							hash = (hash << 2) + h;
 							value += table[j][hash];
 						}
 					}
 					if (highest_value < value) {
 						highest_value = value;
+						hint = h;
 					}
 				}
 			}
@@ -629,17 +621,17 @@ private:
 		ifstream in(path, ios::in | ios::binary);
 		if (!in.is_open()) std::exit(-1);
 		uint32_t block;
-		uint64_t size, key;
+		uint32_t size, key;
 		float value;
 		
 		in.read(reinterpret_cast<char*>(&block), sizeof(uint32_t));
 		table.resize(block);
 		cout << "load block:" << block << endl;
 		for (unsigned int b = 0; b < block; b++) {
-			in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+			in.read(reinterpret_cast<char*>(&size), sizeof(uint32_t));
 			cout << "-load size:" << size << endl;
 			while (size--) {
-				in.read(reinterpret_cast<char*>(&key), sizeof(uint64_t));
+				in.read(reinterpret_cast<char*>(&key), sizeof(uint32_t));
 				in.read(reinterpret_cast<char*>(&value), sizeof(float));
 				table[b][key] = value;
 			}
@@ -651,5 +643,5 @@ private:
 	array<string, 4> opcode;
 	array<array<array<int, 6>, 4>, 8> tuples;
 	
-	vector<unordered_map<uint64_t, float>> table;
+	vector<unordered_map<uint32_t, float>> table;
 };

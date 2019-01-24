@@ -93,18 +93,15 @@ int shell(int argc, const char* argv[]) {
 				if (ctrl == "open") {
 					// a new match is pending
 					InitNewEpisode();
-					if (mode == 2) {
-						if (tag.substr(0, tag.find(':')) == "pcyu_play" || tag.substr(0, tag.find(':')) == "$pcyu") {
-							mode = 0;
-							output() << id << " open accept" << endl;
-						} else if (tag.substr(tag.find(':') + 1) == "pcyu_envi" || tag.substr(tag.find(':') + 1) == "$pcyu") {
-							mode = 1;
-							output() << id << " open accept" << endl;
-						} else {
-							mode = 2;
-							output() << id << " open reject" << endl;
-						}
+					if (tag.substr(0, tag.find(':')) == "pcyu_play" || tag.substr(0, tag.find(':')) == "$pcyu") {
+						mode = 0;
+						output() << id << " open accept" << endl;
+					} else if (tag.substr(tag.find(':') + 1) == "pcyu_envi" || tag.substr(tag.find(':') + 1) == "$pcyu") {
+						mode = 1;
+						output() << id << " open accept" << endl;
 					} else {
+						mode = 2;
+						envi.reset();
 						output() << id << " open reject" << endl;
 					}
 				} else if (ctrl == "close") {
@@ -236,7 +233,7 @@ void InitNewEpisode() {
 	step = 0;
 	current.Reset();
 	movement = "00";
-	hint = 3;
+	hint = 2;
 }
 
 time_t millisec() {
